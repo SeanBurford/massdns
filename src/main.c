@@ -530,11 +530,13 @@ void end_warmup()
         // Reduce our CPU load from epoll interrupts by removing the EPOLLOUT event
 #ifdef PCAP_SUPPORT
         if(!context.pcap)
+        {
 #endif
 #ifdef HAVE_EPOLL
-        {
             add_sockets(context.epollfd, EPOLLIN, EPOLL_CTL_MOD, &context.sockets.interfaces4);
             add_sockets(context.epollfd, EPOLLIN, EPOLL_CTL_MOD, &context.sockets.interfaces6);
+#endif
+#ifdef PCAP_SUPPORT
         }
 #endif
     }
@@ -633,7 +635,7 @@ void send_query(lookup_t *lookup)
 
     ssize_t result = dns_question_create_from_name(query_buffer, &lookup->key->name, lookup->key->type,
                                                    lookup->transaction);
-    if (result < DNS_PACKET_MINIMUM_SIZE)
+    if (result <= 0)
     {
         log_msg("Failed to create DNS question for query \"%s\".", dns_name2str(&lookup->key->name));
         return;
@@ -1124,7 +1126,7 @@ void do_read(uint8_t *offset, size_t len, struct sockaddr_storage *recvaddr)
                     {
                         fputs(",", context.outfile);
                     }
-                    json_escape_str(json_buffer, sizeof(json_buffer), dns_name2str(&rec.name));
+                    json_escape_str(json_buffer, sizeof(json_buffer), dns_name2str(&packet.head.question.name));
 
                     fprintf(context.outfile,
                             "{\"ttl\":%" PRIu32 ",\"type\":\"%s\",\"class\":\"%s\",\"name\":\"%s\",\"data\":\"",
